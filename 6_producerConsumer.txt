@@ -1,43 +1,77 @@
 #include <stdio.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <unistd.h>
+#include <stdlib.h>
 
-sem_t empty, full;
-int buffer;
+// Simulated semaphore variables
+int mutex = 1;
+int full = 0;
+int empty = 10;
 
-void* producer(void* arg) {
-    int item = 1;
-    sem_wait(&empty);  // Wait if buffer is full
-    buffer = item;
-    printf("Producer produced: %d\n", item);
-    sem_post(&full);   // Signal that buffer has item
-    return NULL;
+// A counter to simulate items
+int data = 0;
+
+// Function to simulate wait operation
+int wait(int s) {
+    return --s;
 }
 
-void* consumer(void* arg) {
-    sem_wait(&full);   // Wait if buffer is empty
-    int item = buffer;
-    printf("Consumer consumed: %d\n", item);
-    sem_post(&empty);  // Signal that buffer is empty
-    return NULL;
+// Function to simulate signal operation
+int signal(int s) {
+    return ++s;
+}
+
+void producer() {
+    mutex = wait(mutex);
+    full = signal(full);
+    empty = wait(empty);
+    data++;  // Producing an item
+    printf("\nProducer produces item number: %d\n", data);
+    mutex = signal(mutex);
+}
+
+void consumer() {
+    mutex = wait(mutex);
+    full = wait(full);
+    empty = signal(empty);
+    printf("\nConsumer consumes item number: %d\n", data);
+    data--;  // Consuming the last item
+    mutex = signal(mutex);
 }
 
 int main() {
-    pthread_t t1, t2;
+    int choice;
+    printf("\n1. Enter 1 for Producer"
+           "\n2. Enter 2 for Consumer"
+           "\n3. Enter 3 to Exit");
 
-    sem_init(&empty, 0, 1); // Buffer is initially empty
-    sem_init(&full, 0, 0);  // No items initially
+    while (1) {
+        printf("\nEnter your choice: ");
+        scanf("%d", &choice);
 
-    pthread_create(&t1, NULL, producer, NULL);
-    sleep(1); // Ensure producer runs first for demo
-    pthread_create(&t2, NULL, consumer, NULL);
+        switch (choice) {
+        case 1:
+            if ((mutex == 1) && (empty != 0)) {
+                producer();
+            } else {
+                printf("\nBuffer is full! Cannot produce.");
+            }
+            break;
 
-    pthread_join(t1, NULL);
-    pthread_join(t2, NULL);
+        case 2:
+            if ((mutex == 1) && (full != 0)) {
+                consumer();
+            } else {
+                printf("\nBuffer is empty! Cannot consume.");
+            }
+            break;
 
-    sem_destroy(&empty);
-    sem_destroy(&full);
+        case 3:
+            exit(0);
+            break;
+
+        default:
+            printf("\nInvalid choice!");
+        }
+    }
 
     return 0;
 }
